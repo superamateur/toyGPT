@@ -1,4 +1,4 @@
-# microGPT
+# toyGPT
 Implementation of the tutorial video from  Andrej Karpathy
 
 ## what is does
