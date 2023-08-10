@@ -11,10 +11,11 @@ torch.manual_seed(1337)
 class TrainConfig:
     batch_size = 32
     block_size = 8
-    max_iter = 3000
+    max_iter = 300
     eval_interval = 300
     lr = 1.e-2
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    # device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    device = 'cpu'
     eval_iters = 200
     n_embd = 32
 
@@ -60,16 +61,29 @@ def estimate_loss(net):
     net.train()
     return out
 
+class Head(nn.Module):
+    def __init__(self, head_size):
+        super().__init__()
+        self.key = nn.Linear(cfg.n_embd, head_size, bias=False)
+        self.query = nn.Linear(cfg.n_embd, head_size, bias=False)
+        self.value = nn.Linear(cfg.n_embd, head_size, bias=False)
+        self.register_buffer('tril', torch.tril(torch.ones(cfg.block_size, cfg.block_size)))
 
 class BigramLanguageModel(nn.Module):
     def __init__(self, vocab_size) -> None:
         super().__init__()
         self.token_embeding_table = nn.Embedding(vocab_size, cfg.n_embd)
         self.lm_head = nn.Linear(cfg.n_embd, vocab_size)
+        self.position_embedding_table = nn.Embedding(cfg.block_size, cfg.n_embd)
     
     def forward(self, idx, targets=None):
+        B, T = idx.shape
+
         tok_embd = self.token_embeding_table(idx) # shape: (B, T, C) = (batch, time, channel) = (batch_size, block_size, n_embd)
-        logits = self.lm_head(tok_embd) # (batch_size, block_size, vocab_size)
+        pos_embd = self.position_embedding_table(torch.arange(T, device=cfg.device)) # (T, C=n_embd)
+        
+        x = tok_embd + pos_embd
+        logits = self.lm_head(x) # (batch_size, block_size, vocab_size)
 
         if targets is None:
             loss = None
@@ -112,4 +126,5 @@ for iter in range(cfg.max_iter):
     optimizer.step()
 
 context = torch.zeros((1, 1), dtype=torch.long, device=cfg.device)
-print(data_factory.decode(m.generate(context, max_new_tokens=100)[0].tolist()))
+outputs = m.generate(context, max_new_tokens=100)
+print(data_factory.decode(outputs[0].tolist()))
