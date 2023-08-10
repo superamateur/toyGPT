@@ -11,11 +11,10 @@ torch.manual_seed(1337)
 class TrainConfig:
     batch_size = 32
     block_size = 8
-    max_iter = 300
+    max_iter = 3000
     eval_interval = 300
     lr = 1.e-2
-    # device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    device = 'cpu'
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
     eval_iters = 200
     n_embd = 32
 
@@ -68,21 +67,36 @@ class Head(nn.Module):
         self.query = nn.Linear(cfg.n_embd, head_size, bias=False)
         self.value = nn.Linear(cfg.n_embd, head_size, bias=False)
         self.register_buffer('tril', torch.tril(torch.ones(cfg.block_size, cfg.block_size)))
+    
+    def forward(self, x):
+        B, T, C = x.shape
+        k = self.key(x)
+        q = self.query(x)
+        wei = q  @ k.transpose(-2, -1) * C**-0.5
+        wei = wei.masked_fill(self.tril[:T, :T] == 0, float('-inf'))
+        wei = F.softmax(wei, dim=-1)
+        v = self.value(x)
+        out = wei @ v
+        return out
 
 class BigramLanguageModel(nn.Module):
     def __init__(self, vocab_size) -> None:
         super().__init__()
         self.token_embeding_table = nn.Embedding(vocab_size, cfg.n_embd)
-        self.lm_head = nn.Linear(cfg.n_embd, vocab_size)
         self.position_embedding_table = nn.Embedding(cfg.block_size, cfg.n_embd)
+
+        self.sa_head = Head(cfg.n_embd)
+        self.lm_head = nn.Linear(cfg.n_embd, vocab_size)
+        
     
     def forward(self, idx, targets=None):
         B, T = idx.shape
 
         tok_embd = self.token_embeding_table(idx) # shape: (B, T, C) = (batch, time, channel) = (batch_size, block_size, n_embd)
         pos_embd = self.position_embedding_table(torch.arange(T, device=cfg.device)) # (T, C=n_embd)
-        
         x = tok_embd + pos_embd
+
+        x  = self.sa_head(x)
         logits = self.lm_head(x) # (batch_size, block_size, vocab_size)
 
         if targets is None:
@@ -99,7 +113,8 @@ class BigramLanguageModel(nn.Module):
         Takes in an input of shape (B,T), generate output of shape (B, T + max_new_tokens) 
         '''
         for _ in range(max_new_tokens):
-            logits, loss = self.forward(idx)
+            idx_cond = idx[:, -cfg.block_size:]
+            logits, _ = self.forward(idx_cond)
             # focus only on the last time step
             logits = logits[:, -1, :] # (B, C)
             # convert logits to probabilities
