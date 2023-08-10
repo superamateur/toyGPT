@@ -11,9 +11,9 @@ torch.manual_seed(1337)
 class TrainConfig:
     batch_size = 32
     block_size = 8
-    max_iter = 3000
-    eval_interval = 300
-    lr = 1.e-2
+    max_iter = 5000
+    eval_interval = 500
+    lr = 1.e-3
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     eval_iters = 200
     n_embd = 32
@@ -79,13 +79,24 @@ class Head(nn.Module):
         out = wei @ v
         return out
 
+class MultiHeadAttention(nn.Module):
+    '''
+    Multiple heads of self attention in parallel
+    '''
+    def __init__(self, num_heads, head_size) -> None:
+        super().__init__()
+        self.heads = nn.ModuleList([Head(head_size) for _ in range(num_heads)])
+    
+    def forward(self, x):
+        return torch.cat([h(x) for h in self.heads], dim=-1)
+    
 class BigramLanguageModel(nn.Module):
     def __init__(self, vocab_size) -> None:
         super().__init__()
         self.token_embeding_table = nn.Embedding(vocab_size, cfg.n_embd)
         self.position_embedding_table = nn.Embedding(cfg.block_size, cfg.n_embd)
 
-        self.sa_head = Head(cfg.n_embd)
+        self.sa_heads = MultiHeadAttention(4, cfg.n_embd // 4)
         self.lm_head = nn.Linear(cfg.n_embd, vocab_size)
         
     
@@ -96,7 +107,7 @@ class BigramLanguageModel(nn.Module):
         pos_embd = self.position_embedding_table(torch.arange(T, device=cfg.device)) # (T, C=n_embd)
         x = tok_embd + pos_embd
 
-        x  = self.sa_head(x)
+        x  = self.sa_heads(x)
         logits = self.lm_head(x) # (batch_size, block_size, vocab_size)
 
         if targets is None:
