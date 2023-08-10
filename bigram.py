@@ -16,6 +16,7 @@ class TrainConfig:
     lr = 1.e-2
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     eval_iters = 200
+    n_embd = 32
 
 cfg = TrainConfig()
 
@@ -63,10 +64,13 @@ def estimate_loss(net):
 class BigramLanguageModel(nn.Module):
     def __init__(self, vocab_size) -> None:
         super().__init__()
-        self.token_embeding_table = nn.Embedding(vocab_size, vocab_size)
+        self.token_embeding_table = nn.Embedding(vocab_size, cfg.n_embd)
+        self.lm_head = nn.Linear(cfg.n_embd, vocab_size)
     
     def forward(self, idx, targets=None):
-        logits = self.token_embeding_table(idx) # shape: (B, T, C) = (batch, time, channel) = (batch_size, block_size, vocab_size)
+        tok_embd = self.token_embeding_table(idx) # shape: (B, T, C) = (batch, time, channel) = (batch_size, block_size, n_embd)
+        logits = self.lm_head(tok_embd) # (batch_size, block_size, vocab_size)
+
         if targets is None:
             loss = None
         else:
