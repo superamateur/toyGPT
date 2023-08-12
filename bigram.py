@@ -86,9 +86,12 @@ class MultiHeadAttention(nn.Module):
     def __init__(self, num_heads, head_size) -> None:
         super().__init__()
         self.heads = nn.ModuleList([Head(head_size) for _ in range(num_heads)])
-    
+        self.proj = nn.Linear(cfg.n_embd, cfg.n_embd)
+
     def forward(self, x):
-        return torch.cat([h(x) for h in self.heads], dim=-1)
+        out = torch.cat([h(x) for h in self.heads], dim=-1)
+        out = self.proj(out)
+        return out
 
 
 class FeedForward(nn.Module):
@@ -96,7 +99,9 @@ class FeedForward(nn.Module):
     def __init__(self, n_embd) -> None:
         super().__init__()
         self.net = nn.Sequential(
-            nn.Linear(n_embd, n_embd), nn.ReLU()
+            nn.Linear(n_embd, 4 * n_embd), 
+            nn.ReLU(),
+            nn.Linear(4 * n_embd, n_embd) # similar to projection layer in the multihead attention
         )
     
     def forward(self, x):
@@ -110,10 +115,12 @@ class Block(nn.Module):
         head_size = n_embd // n_head
         self.sa = MultiHeadAttention(n_head, head_size)
         self.ffwd = FeedForward(n_embd)
-    
+        self.layer_norm1 = nn.LayerNorm(n_embd)
+        self.layer_norm2 = nn.LayerNorm(n_embd)
+
     def forward(self, x):
-        x = self.sa(x)
-        x = self.ffwd(x)
+        x = x + self.sa(self.layer_norm1(x))
+        x = x + self.ffwd(self.layer_norm2(x))
         return x
     
 class BigramLanguageModel(nn.Module):
@@ -125,7 +132,8 @@ class BigramLanguageModel(nn.Module):
         self.blocks = nn.Sequential(
             Block(cfg.n_embd, 4),
             Block(cfg.n_embd, 4),
-            Block(cfg.n_embd, 4)
+            Block(cfg.n_embd, 4),
+            nn.LayerNorm(cfg.n_embd)
         )
         self.lm_head = nn.Linear(cfg.n_embd, vocab_size)
     
