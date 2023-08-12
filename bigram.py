@@ -112,7 +112,9 @@ class Block(nn.Module):
         self.ffwd = FeedForward(n_embd)
     
     def forward(self, x):
-        return self.net(x)
+        x = self.sa(x)
+        x = self.ffwd(x)
+        return x
     
 class BigramLanguageModel(nn.Module):
     def __init__(self, vocab_size) -> None:
@@ -120,10 +122,12 @@ class BigramLanguageModel(nn.Module):
         self.token_embeding_table = nn.Embedding(vocab_size, cfg.n_embd)
         self.position_embedding_table = nn.Embedding(cfg.block_size, cfg.n_embd)
 
-        self.sa_heads = MultiHeadAttention(4, cfg.n_embd // 4)
+        self.blocks = nn.Sequential(
+            Block(cfg.n_embd, 4),
+            Block(cfg.n_embd, 4),
+            Block(cfg.n_embd, 4)
+        )
         self.lm_head = nn.Linear(cfg.n_embd, vocab_size)
-
-        self.ffwd = FeedForward(cfg.n_embd)
     
     def forward(self, idx, targets=None):
         B, T = idx.shape
@@ -132,8 +136,7 @@ class BigramLanguageModel(nn.Module):
         pos_embd = self.position_embedding_table(torch.arange(T, device=cfg.device)) # (T, C=n_embd)
         x = tok_embd + pos_embd
 
-        x = self.sa_heads(x)
-        x = self.ffwd(x)
+        x = self.blocks(x)
         logits = self.lm_head(x) # (batch_size, block_size, vocab_size)
 
         if targets is None:
