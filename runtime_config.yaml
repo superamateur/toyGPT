@@ -1,0 +1,20 @@
+# data config
+input: "input.txt"
+batch_size: 64
+block_size: 256
+
+# training config
+device: 'cuda'
+max_iter: 5000
+eval_interval: 500
+lr: 3.e-4
+eval_iters: 100
+
+# model config
+n_embd: 384
+n_head: 6
+n_layer: 6
+dropout: 0.2
+
+# test config
+checkpoint_path: "lightning_logs/version_2/checkpoints/epoch=0-step=500.ckpt"
