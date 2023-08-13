@@ -65,9 +65,10 @@ def test_fn(run_cfg):
     model.to("cuda")
     checkpoint = torch.load(run_cfg.checkpoint_path)
     model.load_state_dict(checkpoint["state_dict"])
+    model.eval()
     # context = torch.zeros((1, 1), dtype=torch.long, device="cuda")
-    context = torch.tensor(data_factory.encode("Ever since "), dtype=torch.long, device="cuda").view(1, -1)
-    outputs = model.generate(context, max_new_tokens=256)
+    context = torch.tensor(data_factory.encode("I ain't "), dtype=torch.long, device="cuda").view(1, -1)
+    outputs = model.generate(context, max_new_tokens=1000)
     
     print(data_factory.decode(outputs[0].tolist()))
 
