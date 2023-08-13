@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import torch
 from torch.utils.data import DataLoader, random_split
 import pytorch_lightning as pl
+from pytorch_lightning.callbacks import ModelCheckpoint
 
 from data_loader import DataFactory
 from model import BigramLanguageModel
@@ -37,11 +38,22 @@ def train_fn(run_cfg):
     vocab_size = dataset.vocab_size
     model = BigramLanguageModel(vocab_size=vocab_size, cfg=run_cfg)
 
+    # config checkpoint callbacks
+    checkpoint_callback = ModelCheckpoint(
+        dirpath=None,
+        filename='{epoch}-{step}-{train_loss:.2f}',
+        save_last=True,
+        monitor='train_loss',
+        every_n_train_steps=1000,
+        save_top_k=-1 # don't ovewrite checkpoints
+    )
+
     trainer = pl.Trainer(
         accelerator="gpu",
         max_steps=run_cfg.max_iter,
         val_check_interval=run_cfg.eval_interval,
-        limit_val_batches=run_cfg.eval_iters)
+        limit_val_batches=run_cfg.eval_iters,
+        callbacks=[checkpoint_callback])
     
     trainer.fit(model=model, train_dataloaders=[train_loader], val_dataloaders=[val_loader])
 
@@ -53,8 +65,9 @@ def test_fn(run_cfg):
     model.to("cuda")
     checkpoint = torch.load(run_cfg.checkpoint_path)
     model.load_state_dict(checkpoint["state_dict"])
-    context = torch.zeros((1, 1), dtype=torch.long, device="cuda")
-    outputs = model.generate(context, max_new_tokens=1000)
+    # context = torch.zeros((1, 1), dtype=torch.long, device="cuda")
+    context = torch.tensor(data_factory.encode("Ever since "), dtype=torch.long, device="cuda").view(1, -1)
+    outputs = model.generate(context, max_new_tokens=256)
     
     print(data_factory.decode(outputs[0].tolist()))
 
