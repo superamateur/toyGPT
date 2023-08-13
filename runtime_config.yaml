@@ -1,11 +1,11 @@
 # data config
-input: "input.txt"
+input: "Adventures of Huckleberry Finn by Mark Twain.txt"
 batch_size: 64
 block_size: 256
 
 # training config
 device: 'cuda'
-max_iter: 5000
+max_iter: 20000
 eval_interval: 500
 lr: 3.e-4
 eval_iters: 100
@@ -17,4 +17,5 @@ n_layer: 6
 dropout: 0.2
 
 # test config
-checkpoint_path: "lightning_logs/version_2/checkpoints/epoch=0-step=500.ckpt"
+# checkpoint_path: "C:/Users/h2tra/work/microGPT/lightning_logs/version_0/checkpoints/epoch=0-step=1000-train_loss=1.57.ckpt"
+checkpoint_path: "C:/Users/h2tra/work/microGPT/lightning_logs/bigram_with_self_att/checkpoints/last.ckpt"
