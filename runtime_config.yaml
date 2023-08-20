@@ -18,4 +18,4 @@ dropout: 0.2
 
 # test config
 checkpoint_path: "C:/Users/h2tra/work/microGPT/lightning_logs/bigram_with_self_att/checkpoints/last.ckpt"
-test_input_txt: "A chicken that had lost his legs "
+test_input_txt: By and by she come along"
